@@ -14,8 +14,58 @@ import os
 app = Flask(__name__)
 CORS(app)  # フロントエンドからのアクセスを許可
 
-# libclangライブラリの場所を指定（Railway環境用）
-clang.cindex.conf.set_library_file('/usr/lib/x86_64-linux-gnu/libclang-1.so')
+# libclangライブラリの場所を自動検出
+import subprocess
+import os
+
+def find_libclang():
+    """libclangライブラリのパスを自動検出"""
+    possible_paths = [
+        '/usr/lib/x86_64-linux-gnu/libclang-1.so',
+        '/usr/lib/libclang.so',
+        '/usr/lib/libclang-16.so',
+        '/usr/lib/x86_64-linux-gnu/libclang.so',
+        '/usr/lib/x86_64-linux-gnu/libclang-16.so',
+        '/usr/local/lib/libclang.so',
+    ]
+    
+    # 各パスを試す
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    
+    # ldconfigで検索
+    try:
+        result = subprocess.run(['ldconfig', '-p'], capture_output=True, text=True)
+        for line in result.stdout.split('\n'):
+            if 'libclang' in line:
+                # libclang.so.1 => /usr/lib/x86_64-linux-gnu/libclang.so.1 の形式から抽出
+                parts = line.split(' => ')
+                if len(parts) > 1:
+                    return parts[1].strip()
+    except:
+        pass
+    
+    # 最後の手段: find コマンド
+    try:
+        result = subprocess.run(['find', '/usr', '-name', 'libclang*.so*', '-type', 'f'], 
+                              capture_output=True, text=True, timeout=10)
+        lines = result.stdout.strip().split('\n')
+        if lines and lines[0]:
+            return lines[0]
+    except:
+        pass
+    
+    return None
+
+# libclangライブラリを自動検出して設定
+libclang_path = find_libclang()
+if libclang_path:
+    print(f"🔍 Found libclang at: {libclang_path}")
+    clang.cindex.conf.set_library_file(libclang_path)
+else:
+    print("⚠️  libclang not found, trying default configuration")
+    # デフォルト設定を試す（環境によっては自動で見つかる場合がある）
 
 # ================================
 # ユーティリティ関数
