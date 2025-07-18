@@ -393,4 +393,10 @@ if __name__ == '__main__':
     print("   POST /api/includes - Get include information")
     print("   POST /api/all - Get all analysis results")
     
-    app.run(host='0.0.0.0', port=port)
+    # 本番環境ではgunicornが推奨だが、開発時はFlask開発サーバーを使用
+    if os.environ.get('FLASK_ENV') == 'development':
+        app.run(host='0.0.0.0', port=port, debug=True)
+    else:
+        # 本番環境: gunicornで起動される（Dockerfileで指定）
+        # 直接実行時はFlask開発サーバーを使用
+        app.run(host='0.0.0.0', port=port, debug=False)
