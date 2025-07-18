@@ -1,0 +1,14 @@
+# Railway Nixpacks設定ファイル
+# libclangのネイティブライブラリを含むビルド設定
+
+[phases.setup]
+nixPkgs = ["python311", "libclang", "clang"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["echo 'Build phase completed'"]
+
+[start]
+cmd = "python main.py"
