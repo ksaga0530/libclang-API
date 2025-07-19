@@ -370,6 +370,7 @@ def get_all():
 def cursor_to_dict(cursor):
     """
     libclangのCursorオブジェクトを辞書形式に変換
+    各ノードにそのノードがカバーするトークンのリストを追加します。
     
     Args:
         cursor: libclangのCursorオブジェクト
@@ -388,6 +389,34 @@ def cursor_to_dict(cursor):
         }
     }
     
+    # 修正点1: 各ノードがカバーするトークン情報を追加
+    # extentはCursorがカバーするソースコードの範囲を示す
+    tokens = []
+    # get_tokens()はExtentオブジェクトを引数にとる
+    # Cursorが有効なExtentを持つ場合のみトークンを取得
+    if cursor.extent.start.line != 0 or cursor.extent.end.line != 0: # 無効なExtentを除外
+        try:
+            for token in cursor.get_tokens(): # Cursorオブジェクトのget_tokens()メソッドを使用
+                tokens.append({
+                    'kind': token.kind.name,
+                    'spelling': token.spelling,
+                    'location': {
+                        'line': token.location.line,
+                        'column': token.location.column
+                    }
+                })
+        except Exception as e:
+            # トークン取得に失敗した場合（例えば、無効なextentなど）はスキップ
+            app.logger.debug(f"Failed to get tokens for cursor {cursor.kind.name} ({cursor.spelling}): {e}")
+            pass
+    
+    if tokens: # トークンが存在する場合のみ追加
+        result['tokens'] = tokens
+
+    # 修正点2: FUNCTION_DECL の returnType を明示的に追加 (cursor.result_type)
+    if cursor.kind == clang.cindex.CursorKind.FUNCTION_DECL:
+        result['result_type_spelling'] = cursor.result_type.spelling # 戻り値の型を追加
+
     # 子要素を再帰的に処理
     children = []
     for child in cursor.get_children():
